@@ -6,24 +6,56 @@
 <title>Char5 - Daily</title>
 <style>
 :root {
-  --bg:#121213; --tile:#3a3a3c; --border:#565758;
-  --green:#538d4e; --yellow:#b59f3b; --gray:#3a3a3c; --text:#fff;
+  --bg:#121213; 
+  --tile:#3a3a3c; 
+  --border:#565758;
+  --green:#538d4e; 
+  --yellow:#b59f3b; 
+  --red:#b33939;  /* red for failures */
+  --text:#fff;
 }
-body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; justify-content:center; }
+body { 
+  margin:0; 
+  font-family:system-ui,sans-serif; 
+  background:var(--bg); 
+  color:var(--text); 
+  display:flex; 
+  justify-content:center; 
+}
 #game { max-width:400px; width:100%; padding:10px; }
 h1 { text-align:center; letter-spacing:4px; font-size:1.8rem; }
 .grid { display:grid; grid-template-rows:repeat(6,1fr); gap:4px; margin:10px auto; }
 .row { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
-.tile { border:2px solid var(--border); width:100%; aspect-ratio:1; display:flex; justify-content:center; align-items:center; font-weight:bold; font-size:1.5rem; text-transform:uppercase; }
+.tile { 
+  border:2px solid var(--border); 
+  width:100%; 
+  aspect-ratio:1; 
+  display:flex; 
+  justify-content:center; 
+  align-items:center; 
+  font-weight:bold; 
+  font-size:1.5rem; 
+  text-transform:uppercase; 
+}
 .correct { background:var(--green); border-color:var(--green); }
 .present { background:var(--yellow); border-color:var(--yellow); }
-.absent { background:var(--gray); border-color:var(--gray); }
+.absent { background:var(--red); border-color:var(--red); } /* red */
 .keyboard { display:grid; grid-template-columns:repeat(20,1fr); gap:4px; margin-top:10px; }
-.key { grid-column:span 2; padding:6px; background:#818384; border-radius:4px; text-align:center; cursor:pointer; user-select:none; font-weight:bold; font-size:.8rem; }
+.key { 
+  grid-column:span 2; 
+  padding:6px; 
+  background:#818384; 
+  border-radius:4px; 
+  text-align:center; 
+  cursor:pointer; 
+  user-select:none; 
+  font-weight:bold; 
+  font-size:.8rem; 
+}
 .key.wide { grid-column:span 3; }
 .key.used.correct { background:var(--green); }
 .key.used.present { background:var(--yellow); }
-.key.used.absent { background:var(--gray); }
+.key.used.absent { background:var(--red); } /* red */
 #message { text-align:center; margin-top:10px; }
 #shareBtn { margin-top:5px; padding:6px 12px; background:#538d4e; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold; }
 </style>
@@ -38,12 +70,8 @@ h1 { text-align:center; letter-spacing:4px; font-size:1.8rem; }
 </div>
 
 <script>
-const WORDS = ["apple","grape","brick","chair","plane","smile","eagle","night","sound","water","bread","light","storm","heart","peace","candy"];
-const startDate = new Date("2021-06-19");
-const today = new Date();
-const dayIndex = Math.floor((today - startDate) / 86400000);
-const solution = WORDS[dayIndex % WORDS.length];
-
+let WORDS = [];
+let solution = "";
 let row = 0, col = 0;
 let guesses = Array.from({length:6},()=>Array(5).fill(""));
 
@@ -52,6 +80,18 @@ const keyboard = document.getElementById("keyboard");
 const message = document.getElementById("message");
 const shareBtn = document.getElementById("shareBtn");
 
+// --- Fetch words from char5.txt ---
+fetch("./char5.txt")
+  .then(res => res.text())
+  .then(text => {
+    WORDS = text.split(/\r?\n/).filter(Boolean);
+    // Pick solution based on epoch time (seconds)
+    const now = Date.now();
+    solution = WORDS[Math.floor(now / 1000) % WORDS.length];
+    console.log("Today's solution:", solution); // optional debug
+  });
+
+// --- Initialize grid ---
 for(let r=0;r<6;r++){
   const rowDiv=document.createElement("div");
   rowDiv.className="row";
@@ -64,6 +104,7 @@ for(let r=0;r<6;r++){
   grid.appendChild(rowDiv);
 }
 
+// --- Keyboard ---
 const KEYS=[..."QWERTYUIOP", ..."ASDFGHJKL","ENTER", ..."ZXCVBNM","⌫"];
 KEYS.forEach(k=>{
   const key=document.createElement("div");
@@ -73,6 +114,7 @@ KEYS.forEach(k=>{
   keyboard.appendChild(key);
 });
 
+// --- Keyboard input ---
 document.addEventListener("keydown",e=>{
   let k=e.key.toUpperCase();
   if(k==="BACKSPACE") k="⌫";
@@ -81,19 +123,55 @@ document.addEventListener("keydown",e=>{
 
 function handleKey(k){
   if(row>=6) return;
-  if(k==="⌫"){ if(col>0){ col--; guesses[row][col]=""; updateTile(row,col); } }
-  else if(k==="ENTER"){ if(col===5) submitGuess(); }
-  else if(col<5){ guesses[row][col]=k.toLowerCase(); updateTile(row,col); col++; }
+  if(k==="⌫"){ 
+    if(col>0){ 
+      col--; 
+      guesses[row][col]=""; 
+      updateTile(row,col); 
+    } 
+  }
+  else if(k==="ENTER"){ 
+    if(col===5) submitGuess(); 
+  }
+  else if(col<5){ 
+    guesses[row][col]=k.toLowerCase(); 
+    updateTile(row,col); 
+    col++; 
+  }
 }
 
-function updateTile(r,c){ document.getElementById(`tile-${r}-${c}`).textContent=guesses[r][c]; }
+function updateTile(r,c){ 
+  document.getElementById(`tile-${r}-${c}`).textContent=guesses[r][c]; 
+}
 
 function submitGuess(){
-  const guess=guesses[row].join(""); if(guess.length<5) return;
-  const solutionArr=solution.split(""); let result=Array(5).fill("absent");
+  if(!solution) return; // wait until words are loaded
+  const guess=guesses[row].join(""); 
+  if(guess.length<5) return;
 
-  for(let i=0;i<5;i++){ if(guess[i]===solutionArr[i]){ result[i]="correct"; solutionArr[i]=null; } }
-  for(let i=0;i<5;i++){ if(result[i]==="correct") continue; const idx=solutionArr.indexOf(guess[i]); if(idx!==-1){ result[i]="present"; solutionArr[idx]=null; } }
+  // --- Only allow words from WORDS list ---
+  if(!WORDS.includes(guess)){
+    message.textContent = "Word not in list!";
+    return;
+  }
+
+  const solutionArr=solution.split(""); 
+  let result=Array(5).fill("absent");
+
+  for(let i=0;i<5;i++){ 
+    if(guess[i]===solutionArr[i]){ 
+      result[i]="correct"; 
+      solutionArr[i]=null; 
+    } 
+  }
+  for(let i=0;i<5;i++){ 
+    if(result[i]==="correct") continue; 
+    const idx=solutionArr.indexOf(guess[i]); 
+    if(idx!==-1){ 
+      result[i]="present"; 
+      solutionArr[idx]=null; 
+    } 
+  }
 
   result.forEach((res,i)=>{
     const tile=document.getElementById(`tile-${row}-${i}`);
@@ -101,7 +179,11 @@ function submitGuess(){
     updateKeyboard(guess[i],res);
   });
 
-  if(guess===solution){ message.textContent="🎉 You Win!"; row=6; return; }
+  if(guess===solution){ 
+    message.textContent="🎉 You Win!"; 
+    row=6; 
+    return; 
+  }
   row++; col=0;
   if(row===6){ message.textContent=`Answer: ${solution.toUpperCase()}`; }
 }
@@ -114,7 +196,7 @@ function updateKeyboard(letter,status){
 
 // --- SHARE FUNCTION ---
 shareBtn.onclick = () => {
-  let text = `Char5 ${dayIndex}\n`;
+  let text = `Char5\n`;
   for(let r=0;r<row;r++){
     for(let c=0;c<5;c++){
       const t=document.getElementById(`tile-${r}-${c}`);
