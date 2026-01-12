@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Char5 - Daily</title>
+<style>
+:root {
+  --bg:#121213; --tile:#3a3a3c; --border:#565758;
+  --green:#538d4e; --yellow:#b59f3b; --gray:#3a3a3c; --text:#fff;
+}
+body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; justify-content:center; }
+#game { max-width:400px; width:100%; padding:10px; }
+h1 { text-align:center; letter-spacing:4px; font-size:1.8rem; }
+.grid { display:grid; grid-template-rows:repeat(6,1fr); gap:4px; margin:10px auto; }
+.row { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+.tile { border:2px solid var(--border); width:100%; aspect-ratio:1; display:flex; justify-content:center; align-items:center; font-weight:bold; font-size:1.5rem; text-transform:uppercase; }
+.correct { background:var(--green); border-color:var(--green); }
+.present { background:var(--yellow); border-color:var(--yellow); }
+.absent { background:var(--gray); border-color:var(--gray); }
+.keyboard { display:grid; grid-template-columns:repeat(20,1fr); gap:4px; margin-top:10px; }
+.key { grid-column:span 2; padding:6px; background:#818384; border-radius:4px; text-align:center; cursor:pointer; user-select:none; font-weight:bold; font-size:.8rem; }
+.key.wide { grid-column:span 3; }
+.key.used.correct { background:var(--green); }
+.key.used.present { background:var(--yellow); }
+.key.used.absent { background:var(--gray); }
+#message { text-align:center; margin-top:10px; }
+#shareBtn { margin-top:5px; padding:6px 12px; background:#538d4e; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold; }
+</style>
+</head>
+<body>
+<div id="game">
+  <h1>CHAR5</h1>
+  <div id="grid" class="grid"></div>
+  <div id="keyboard" class="keyboard"></div>
+  <div id="message"></div>
+  <button id="shareBtn">Share</button>
+</div>
+
+<script>
+const WORDS = ["apple","grape","brick","chair","plane","smile","eagle","night","sound","water","bread","light","storm","heart","peace","candy"];
+const startDate = new Date("2021-06-19");
+const today = new Date();
+const dayIndex = Math.floor((today - startDate) / 86400000);
+const solution = WORDS[dayIndex % WORDS.length];
+
+let row = 0, col = 0;
+let guesses = Array.from({length:6},()=>Array(5).fill(""));
+
+const grid = document.getElementById("grid");
+const keyboard = document.getElementById("keyboard");
+const message = document.getElementById("message");
+const shareBtn = document.getElementById("shareBtn");
+
+for(let r=0;r<6;r++){
+  const rowDiv=document.createElement("div");
+  rowDiv.className="row";
+  for(let c=0;c<5;c++){
+    const tile=document.createElement("div");
+    tile.className="tile";
+    tile.id=`tile-${r}-${c}`;
+    rowDiv.appendChild(tile);
+  }
+  grid.appendChild(rowDiv);
+}
+
+const KEYS=[..."QWERTYUIOP", ..."ASDFGHJKL","ENTER", ..."ZXCVBNM","⌫"];
+KEYS.forEach(k=>{
+  const key=document.createElement("div");
+  key.className="key"; key.textContent=k;
+  if(k==="ENTER"||k==="⌫") key.classList.add("wide");
+  key.onclick=()=>handleKey(k);
+  keyboard.appendChild(key);
+});
+
+document.addEventListener("keydown",e=>{
+  let k=e.key.toUpperCase();
+  if(k==="BACKSPACE") k="⌫";
+  if(k==="ENTER"||/^[A-Z]$/.test(k)) handleKey(k);
+});
+
+function handleKey(k){
+  if(row>=6) return;
+  if(k==="⌫"){ if(col>0){ col--; guesses[row][col]=""; updateTile(row,col); } }
+  else if(k==="ENTER"){ if(col===5) submitGuess(); }
+  else if(col<5){ guesses[row][col]=k.toLowerCase(); updateTile(row,col); col++; }
+}
+
+function updateTile(r,c){ document.getElementById(`tile-${r}-${c}`).textContent=guesses[r][c]; }
+
+function submitGuess(){
+  const guess=guesses[row].join(""); if(guess.length<5) return;
+  const solutionArr=solution.split(""); let result=Array(5).fill("absent");
+
+  for(let i=0;i<5;i++){ if(guess[i]===solutionArr[i]){ result[i]="correct"; solutionArr[i]=null; } }
+  for(let i=0;i<5;i++){ if(result[i]==="correct") continue; const idx=solutionArr.indexOf(guess[i]); if(idx!==-1){ result[i]="present"; solutionArr[idx]=null; } }
+
+  result.forEach((res,i)=>{
+    const tile=document.getElementById(`tile-${row}-${i}`);
+    tile.classList.add(res);
+    updateKeyboard(guess[i],res);
+  });
+
+  if(guess===solution){ message.textContent="🎉 You Win!"; row=6; return; }
+  row++; col=0;
+  if(row===6){ message.textContent=`Answer: ${solution.toUpperCase()}`; }
+}
+
+function updateKeyboard(letter,status){
+  document.querySelectorAll(".key").forEach(k=>{
+    if(k.textContent.toLowerCase()===letter) k.classList.add("used",status);
+  });
+}
+
+// --- SHARE FUNCTION ---
+shareBtn.onclick = () => {
+  let text = `Char5 ${dayIndex}\n`;
+  for(let r=0;r<row;r++){
+    for(let c=0;c<5;c++){
+      const t=document.getElementById(`tile-${r}-${c}`);
+      if(t.classList.contains("correct")) text+="🟩";
+      else if(t.classList.contains("present")) text+="🟨";
+      else text+="⬛";
+    }
+    text+="\n";
+  }
+  navigator.clipboard.writeText(text).then(()=>{ message.textContent="Copied to clipboard!" });
+};
+</script>
+</body>
+</html>
